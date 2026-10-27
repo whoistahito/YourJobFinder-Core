@@ -36,6 +36,7 @@
 - Thin client for the external Google scraping API.
 - `scrape_google(title, location, limit=10)`:
   - Builds query string: `"{title} jobs in {location}"`.
+  - **Throttles calls**: at least 60s elapse between any two requests (`_throttle()` in the service, process-wide, applies to every caller including the daily per-user loop); the interval also counts failed calls because a failed call still hits the scraper API.
   - `POST`s to `google_scraper_url` with JSON `{query, limit}` and `Authorization: Bearer <google_scraper_token>`.
   - Raises on non-2xx (`response.raise_for_status()`) and parses the JSON into `GoogleScrapeResponse`.
 - Expectation: this module does **not** scrape directly; it delegates to a separate service behind `google_scraper_url`.
