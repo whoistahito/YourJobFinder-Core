@@ -15,7 +15,8 @@ x-app-env: &app-env
   db_username: ${DB_USERNAME:-postgres}
   db_password: ${DB_PASSWORD:-}
   cloudflare_email_token: ${CLOUDFLARE_EMAIL_TOKEN:-}
-  cloudflare_account_id: ${CLOUDFLARE_ACCOUNT_ID:-c5fbc09971701c92572e214f852edea7}
+  cloudflare_account_id: ${CLOUDFLARE_ACCOUNT_ID:-}
+  cloudflare_browser_token: ${CLOUDFLARE_BROWSER_TOKEN:-}
   cloudflare_email_welcome_from: ${CLOUDFLARE_EMAIL_WELCOME_FROM:-welcome@yourjobfinder.website}
   cloudflare_email_notification_from: ${CLOUDFLARE_EMAIL_NOTIFICATION_FROM:-notification@yourjobfinder.website}
   google_scraper_url: ${GOOGLE_SCRAPER_URL:-}

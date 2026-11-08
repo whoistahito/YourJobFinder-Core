@@ -28,14 +28,18 @@ class GoogleScraperCredential:
     def get_google_scraper_token():
         return os.environ.get("google_scraper_token")
 
-class CloudflareEmailCredential:
+class CloudflareCredential:
     @staticmethod
     def get_token():
-        return os.environ.get("cloudflare_email_token", "")
+        return os.environ.get("cloudflare_email_token")
 
     @staticmethod
     def get_account_id():
-        return os.environ.get("cloudflare_account_id", "c5fbc09971701c92572e214f852edea7")
+        return os.environ.get("cloudflare_account_id")
+
+    @staticmethod
+    def get_browser_token():
+        return os.environ.get("cloudflare_browser_token")
 
     @staticmethod
     def get_welcome_from():

@@ -4,7 +4,7 @@ import re
 from cloudflare import Cloudflare
 
 from logger_utils import create_logger
-from credential import CloudflareEmailCredential
+from credential import CloudflareCredential
 
 logger = create_logger("email_manager")
 
@@ -29,10 +29,10 @@ def send_email(body, subject, receiver_email, is_html=True, sender=None):
         html_body, text_body = None, body
 
     try:
-        client = Cloudflare(api_token=CloudflareEmailCredential.get_token())
+        client = Cloudflare(api_token=CloudflareCredential.get_token())
         response = client.email_sending.send(
-            account_id=CloudflareEmailCredential.get_account_id(),
-            from_=sender or CloudflareEmailCredential.get_welcome_from(),
+            account_id=CloudflareCredential.get_account_id(),
+            from_=sender or CloudflareCredential.get_welcome_from(),
             to=receiver_email,
             subject=subject,
             html=html_body,
