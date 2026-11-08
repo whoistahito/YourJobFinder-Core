@@ -78,7 +78,7 @@ def test_unknown_user_returns_empty_matches_array():
     resp = client.get("/users/does-not-exist/matches")
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"user_id": "does-not-exist", "matches": []}
+    assert resp.get_json() == {"user_id": "does-not-exist", "email": None, "matches": []}
 
 
 def test_unscored_match_serializes_score_as_null():
@@ -91,3 +91,28 @@ def test_unscored_match_serializes_score_as_null():
     resp = client.get("/users/u-1/matches")
 
     assert resp.get_json()["matches"][0]["score"] is None
+
+
+def _signup(app, payload):
+    """Create a real user row through the API (welcome email patched out)."""
+    from unittest.mock import patch
+    with app.app_context():
+        with patch("infrastructure.app_factory.send_welcome_email"):
+            resp = app.test_client().post("/user", json=payload)
+        assert resp.status_code == 201
+        return resp.get_json()["user_id"]
+
+
+def test_matches_payload_includes_the_users_email():
+    app = create_app(db_uri="sqlite:///:memory:")
+    with app.app_context():
+        db.create_all()
+    user_id = _signup(app, {"email": "ada@lovelace.dev", "position": "Dev",
+                            "location": "Berlin", "jobType": "full-time"})
+    _persist(app, _mk(1, user_id=user_id))
+    client = app.test_client()
+
+    resp = client.get(f"/users/{user_id}/matches")
+
+    body = resp.get_json()
+    assert body["email"] == "ada@lovelace.dev"

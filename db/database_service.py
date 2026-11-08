@@ -33,6 +33,10 @@ class UserManager:
         return (User.query
                 .filter_by(email=email, position=position, location=location).one_or_none())
 
+    def get_user(self, user_id: str):
+        """Look up a user by primary key (dashboard API), or None."""
+        return User.query.filter_by(id=user_id).first() if user_id else None
+
     def get_new_users(self):
         return User.query.filter_by(is_new=True).all()
 

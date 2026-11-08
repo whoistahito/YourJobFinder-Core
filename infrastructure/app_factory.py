@@ -66,7 +66,15 @@ def _register_routes(app: Flask, user_manager: UserManager, repo: JobMatchReposi
                     send_welcome_email(user)
                 except Exception as e:
                     print(f"welcome email failed for {email}: {e}")
-            return jsonify({"message": "User added successfully!"}), 201
+                user_id = user.id
+            else:
+                # Duplicate signup (same email+position+location): surface the
+                # existing row's id so the frontend can still open the dashboard.
+                existing = user_manager.user_exists(email, position, location)
+                user_id = existing.id if existing else None
+            # The id is how the frontend reaches GET /users/<id>/matches — the
+            # signup response is the only moment we can hand it over.
+            return jsonify({"message": "User added successfully!", "user_id": user_id}), 201
         except Exception as e:
             print(e)
             return jsonify({"message": str(e)}), 500
@@ -90,7 +98,8 @@ def _register_routes(app: Flask, user_manager: UserManager, repo: JobMatchReposi
     def confirm_email(token):
         user = user_manager.confirm_user(token)
         if user:
-            return redirect("https://yourjobfinder.website/confirm-email/success")
+            # uid travels along so the success page can link /dashboard/<uid>.
+            return redirect(f"https://yourjobfinder.website/confirm-email/success?uid={user.id}")
         else:
             return redirect("https://yourjobfinder.website/confirm-email/error")
 
@@ -101,8 +110,11 @@ def _register_routes(app: Flask, user_manager: UserManager, repo: JobMatchReposi
     @app.route("/users/<user_id>/matches", methods=["GET"])
     def list_user_matches(user_id: str):
         matches = ListUserMatches(repo).execute(user_id)
+        # Sidebar needs the user's email; None for an unknown user.
+        user = user_manager.get_user(user_id)
         return jsonify({
             "user_id": user_id,
+            "email": user.email if user else None,
             "matches": [
                 {
                     "id": m.id,
