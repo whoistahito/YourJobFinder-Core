@@ -15,9 +15,11 @@ from html_render import create_job_card, get_html_template, get_welcome_message
 from logger_utils import create_logger
 from scrapers.google_scraper_service import scrape_google
 from scrapers.google_scraper_models import GoogleJobPosting
+from scrapers.linkedin.scraper_service import scrape_linkedin
 from job_matching.job_matching_service import match
 from job_matching.job_matching_models import UserProfile
 from domain.matched_job import MatchedJob
+from domain.job_posting import JobPostingModel
 from infrastructure.job_match_repository import SqlAlchemyJobMatchRepository
 from extension import db
 
@@ -43,8 +45,25 @@ def find_jobs(
         location: str,
         job_type: Optional[str],
         country_code: Optional[str] = None,
-) -> list[GoogleJobPosting]:
-    return scrape_google(search_term, location, 10, country_code=country_code).jobs
+) -> list[GoogleJobPosting | JobPostingModel]:
+    # Google first, then LinkedIn on top; both scrapers fail-open to [] on errors.
+    jobs = list(scrape_google(search_term, location, 10, country_code=country_code).jobs)
+    jobs.extend(scrape_linkedin(search_term, location, 10))
+    return _dedupe_by_link(jobs)
+
+
+def _dedupe_by_link(jobs) -> list:
+    # Per-run dedupe: the same job can surface on both Google and LinkedIn.
+    # Cross-run dedupe stays DB-backed via the SentEmail key.
+    seen = set()
+    unique = []
+    for job in jobs:
+        link = str(job.link)
+        if link in seen:
+            continue
+        seen.add(link)
+        unique.append(job)
+    return unique
 
 
 def _safe_str(value: Optional[str]) -> str:
