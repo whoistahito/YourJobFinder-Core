@@ -12,7 +12,7 @@ class JobMatcherCredential:
 
     @staticmethod
     def get_extractor_model():
-        value = os.environ.get("extractor_model","gpt-oss-120b,glm4.7")
+        value = os.environ.get("extractor_model")
         return[item.strip() for item in value.split(",")]
 
     @staticmethod
