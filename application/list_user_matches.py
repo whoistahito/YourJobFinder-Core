@@ -5,6 +5,9 @@ best-fit-first. Unscored matches (None) sort after every scored one.
 """
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Optional
+
 from domain.job_match_repository import JobMatchRepository
 from domain.matched_job import MatchedJob
 
@@ -21,7 +24,7 @@ class ListUserMatches:
     def __init__(self, repo: JobMatchRepository):
         self._repo = repo
 
-    def execute(self, user_id: str) -> list[MatchedJob]:
+    def execute(self, user_id: str, since: Optional[datetime] = None) -> list[MatchedJob]:
         if not user_id:
             return []
-        return sorted(self._repo.list_for_user(user_id), key=_sort_key)
+        return sorted(self._repo.list_for_user(user_id, since), key=_sort_key)

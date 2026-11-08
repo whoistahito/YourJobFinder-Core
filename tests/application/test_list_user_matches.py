@@ -15,7 +15,7 @@ class InMemoryJobMatchRepository(JobMatchRepository):
     def __init__(self):
         self._rows: list[MatchedJob] = []
 
-    def list_for_user(self, user_id: str) -> list[MatchedJob]:
+    def list_for_user(self, user_id: str, since=None) -> list[MatchedJob]:
         return [m for m in self._rows if m.user_id == user_id]
 
     def save(self, matched_job: MatchedJob) -> MatchedJob:

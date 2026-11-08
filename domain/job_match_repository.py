@@ -6,6 +6,7 @@ Domain owns the interface; infrastructure provides the implementation
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Optional
 
 from domain.matched_job import MatchedJob
@@ -13,8 +14,8 @@ from domain.matched_job import MatchedJob
 
 class JobMatchRepository(ABC):
     @abstractmethod
-    def list_for_user(self, user_id: str) -> list[MatchedJob]:
-        """Return all matches for the given user, repository order not defined."""
+    def list_for_user(self, user_id: str, since: Optional[datetime] = None) -> list[MatchedJob]:
+        """Matches for the user; `since` (naive UTC) drops older rows when set."""
         raise NotImplementedError
 
     @abstractmethod

@@ -52,11 +52,13 @@ class SqlAlchemyJobMatchRepository(JobMatchRepository):
     def __init__(self, db):
         self._db = db
 
-    def list_for_user(self, user_id: str) -> list[MatchedJob]:
+    def list_for_user(self, user_id: str, since: Optional[datetime] = None) -> list[MatchedJob]:
         if not user_id:
             return []
-        rows = self._db.session.query(OrmMatchedJob).filter_by(user_id=user_id).all()
-        return [to_domain(r) for r in rows]
+        query = self._db.session.query(OrmMatchedJob).filter_by(user_id=user_id)
+        if since is not None:
+            query = query.filter(OrmMatchedJob.created_at >= since)
+        return [to_domain(r) for r in query.all()]
 
     def save(self, matched_job: MatchedJob) -> MatchedJob:
         # Insert only. `id=None` (the live path) autoincrements; a caller-supplied

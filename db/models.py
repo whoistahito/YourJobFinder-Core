@@ -55,3 +55,4 @@ class SentEmail(db.Model):
     job_url = db.Column(db.String, primary_key=True)
     position = db.Column(db.String, primary_key=True)
     location = db.Column(db.String, primary_key=True)
+    sent_at = db.Column(db.DateTime, nullable=True)

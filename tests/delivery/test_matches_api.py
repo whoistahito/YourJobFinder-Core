@@ -8,7 +8,7 @@ factory. Verifies the contract the frontend Dashboard will rely on:
   - unknown user returns an empty array
 Run: pytest tests/delivery/test_matches_api.py
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from extension import db
 from infrastructure.app_factory import create_app
@@ -22,12 +22,28 @@ def _persist(app, matched_job: MatchedJob):
 
 
 def _mk(mid, user_id="u-1", score=80, title="Senior Frontend Engineer",
-         company="Linear", location="Remote (EU)"):
+         company="Linear", location="Remote (EU)", created_at=None):
     return MatchedJob(
         id=mid, user_id=user_id, title=title, company=company, location=location,
         job_url=f"https://x/{mid}", date_posted="2026-06-28", score=score,
-        created_at=datetime(2026, 6, 28, 7, 0, tzinfo=timezone.utc),
+        created_at=created_at or (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)),
     )
+
+
+def test_default_window_excludes_matches_older_than_thirty_days():
+    app = create_app(db_uri="sqlite:///:memory:")
+    with app.app_context():
+        db.create_all()
+        old = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=40)
+        _persist(app, _mk(1, created_at=old))
+        _persist(app, _mk(2, created_at=datetime.now(timezone.utc).replace(tzinfo=None)))
+    client = app.test_client()
+
+    default = client.get("/users/u-1/matches").get_json()["matches"]
+    assert [m["id"] for m in default] == [2]
+
+    older = client.get("/users/u-1/matches?older=1").get_json()["matches"]
+    assert sorted(m["id"] for m in older) == [1, 2]
 
 
 def test_get_matches_returns_200_with_card_shape():

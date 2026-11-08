@@ -181,9 +181,28 @@ def _register_routes(app: Flask, user_manager: UserManager, repo: JobMatchReposi
             return redirect(f"https://yourjobfinder.website/dashboard/{user.id}")
         return redirect("https://yourjobfinder.website/login?state=expired")
 
+    @app.route("/users/<user_id>/profile", methods=["GET"])
+    def get_user_profile(user_id: str):
+        user = user_manager.get_user(user_id)
+        if user is None:
+            return jsonify({"message": "Unknown user"}), 404
+        return jsonify({
+            "user_id": user_id,
+            "email": user.email,
+            "position": user.position,
+            "location": user.location,
+            "job_type": user.job_type,
+            "skills": [s.skill for s in user.skills],
+            "experiences": [e.experience for e in user.experiences],
+            "educations": [e.education for e in user.educations],
+        })
+
     @app.route("/users/<user_id>/matches", methods=["GET"])
     def list_user_matches(user_id: str):
-        matches = ListUserMatches(repo).execute(user_id)
+        # Default window: last 30 days; ?older=1 returns the full history.
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        since = None if request.args.get("older") in ("1", "true") else now - timedelta(days=30)
+        matches = ListUserMatches(repo).execute(user_id, since)
         # Sidebar needs the user's email; None for an unknown user.
         user = user_manager.get_user(user_id)
         return jsonify({
