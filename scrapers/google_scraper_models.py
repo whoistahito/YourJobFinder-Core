@@ -2,6 +2,8 @@ from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, HttpUrl
 
+from domain.job_posting import JobPostingModel
+
 
 NonEmptyStr = Annotated[str, StringConstraints(min_length=2, strip_whitespace=True)]
 
@@ -15,6 +17,18 @@ class GoogleJobPosting(BaseModel):
     date_posted: Optional[str] = Field(default=None, alias="datePosted")
     employment_type: Optional[str] = Field(default=None, alias="employmentType")
     description: Optional[str] = None
+
+    def to_job_posting(self) -> JobPostingModel:
+        # Scraper-owned map: GoogleJobPosting → unified domain JobPostingModel.
+        return JobPostingModel(
+            title=self.title,
+            company=self.company,
+            link=str(self.link),
+            location=self.location,
+            date_posted=self.date_posted,
+            employment_type=self.employment_type,
+            description=self.description,
+        )
 
 
 class GoogleScrapeResponse(BaseModel):
@@ -37,3 +51,6 @@ class GoogleScrapeResponse(BaseModel):
                 logger.warning(f"Skipping job due to validation error: {e}")
         data = {**data, "jobs": valid_jobs}
         return cls.model_validate(data)
+
+    def to_job_postings(self) -> List[JobPostingModel]:
+        return [job.to_job_posting() for job in self.jobs]

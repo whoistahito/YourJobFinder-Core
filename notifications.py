@@ -14,7 +14,6 @@ from credential import CloudflareCredential
 from html_render import create_job_card, get_html_template, get_welcome_message
 from logger_utils import create_logger
 from scrapers.google_scraper_service import scrape_google
-from scrapers.google_scraper_models import GoogleJobPosting
 from scrapers.linkedin.scraper_service import scrape_linkedin
 from job_matching.job_matching_service import match
 from job_matching.job_matching_models import UserProfile
@@ -45,9 +44,9 @@ def find_jobs(
         location: str,
         job_type: Optional[str],
         country_code: Optional[str] = None,
-) -> list[GoogleJobPosting | JobPostingModel]:
-    # Google first, then LinkedIn on top; both scrapers fail-open to [] on errors.
-    jobs = list(scrape_google(search_term, location, 10, country_code=country_code).jobs)
+) -> list[JobPostingModel]:
+    # Google first, then LinkedIn on top; both scrapers fail-open to [] (unified JobPostingModel).
+    jobs = scrape_google(search_term, location, 10, country_code=country_code)
     jobs.extend(scrape_linkedin(search_term, location, 10))
     return _dedupe_by_link(jobs)
 
@@ -83,7 +82,7 @@ def get_user_profile(user) -> Optional[UserProfile]:
 
 
 def notify_jobs(
-        jobs: list[GoogleJobPosting],
+        jobs: list[JobPostingModel],
         email: str,
         position: str,
         location: str,
@@ -131,7 +130,7 @@ def notify_user(user):
 
     matched = []  # (job, score_value) — persisted only after the email is sent
     for job in found_jobs:
-        job_url = str(job.link)
+        job_url = job.link
         if UserEmailManager().is_sent(user.email, job_url, user.position, user.location):
             continue
 
@@ -170,10 +169,10 @@ def notify_user(user):
     notify_jobs([job for job, _ in matched], user.email, user.position, user.location)
     for job, score_value in matched:
         UserEmailManager().add_sent_email(
-            user.email, str(job.link), user.position, user.location
+            user.email, job.link, user.position, user.location
         )
         job_match_repo.save(MatchedJob(
             id=None, user_id=user.id, title=job.title, company=job.company,
-            location=job.location, job_url=str(job.link), date_posted=job.date_posted,
+            location=job.location, job_url=job.link, date_posted=job.date_posted,
             score=score_value, created_at=datetime.now(timezone.utc),
         ))

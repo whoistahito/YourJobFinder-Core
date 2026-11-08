@@ -3,6 +3,7 @@ import requests
 from pydantic import ValidationError
 
 from credential import GoogleScraperCredential
+from domain.job_posting import JobPostingModel
 from scrapers.google_scraper_models import GoogleScrapeResponse
 from logger_utils import create_logger
 
@@ -23,7 +24,7 @@ def _throttle() -> None:
     _last_call_at = time.monotonic()
 
 
-def scrape_google(title: str, location: str, limit: int = 10, country_code: str = None) -> GoogleScrapeResponse:
+def scrape_google(title: str, location: str, limit: int = 10, country_code: str = None) -> list[JobPostingModel]:
     token = GoogleScraperCredential.get_google_scraper_token()
     url = GoogleScraperCredential.get_google_scraper_url()
     query = f"{title} jobs in {location}"
@@ -43,10 +44,10 @@ def scrape_google(title: str, location: str, limit: int = 10, country_code: str 
         response.raise_for_status()
         data = response.json()
         logger.info(f"Found {len(data['jobs'])} jobs")
-        return GoogleScrapeResponse.from_json(data)
+        return GoogleScrapeResponse.from_json(data).to_job_postings()
     except requests.exceptions.HTTPError as e:
         logger.error(f"Scraper HTTP error for '{title}': {e}")
-        return GoogleScrapeResponse()
+        return []
     except (ValidationError, Exception) as e:
         logger.error(f"Failed to parse scraper response: {e}")
-        return GoogleScrapeResponse()
+        return []

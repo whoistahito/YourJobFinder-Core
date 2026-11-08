@@ -169,7 +169,7 @@ def get_welcome_message(confirm_url):
 def create_job_card(row):
     """Creates an individual job card (table block) aligned with theme.
 
-    Expected row: GoogleJobPosting model instance.
+    Expected row: JobPostingModel (the unified domain model).
     """
     title = row.title or ""
     company = row.company or ""
