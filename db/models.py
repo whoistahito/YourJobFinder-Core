@@ -15,6 +15,8 @@ class User(db.Model):
     is_new = db.Column(db.Boolean, nullable=False, default=True)
     is_confirmed = db.Column(db.Boolean, nullable=False, default=False)
     confirmation_token = db.Column(db.String, nullable=True)
+    login_token = db.Column(db.String, nullable=True)
+    login_token_expires_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('email', 'position', 'location', name='_user_uc'),

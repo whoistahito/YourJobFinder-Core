@@ -1,6 +1,13 @@
 from db.models import User, SentEmail, Skill, Experience, Education
 from extension import db
+from sqlalchemy import func
+from datetime import datetime, timezone
 import uuid
+
+
+def _utcnow() -> datetime:
+    # naive UTC so comparisons match the naive DateTime column
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class UserManager:
@@ -57,6 +64,33 @@ class UserManager:
             db.session.commit()
             return user
         return None
+
+    def find_users_by_email(self, email):
+        """All subscriptions for an email, newest first (emails are not unique)."""
+        return (User.query
+                .filter(func.lower(User.email) == (email or '').strip().lower())
+                .order_by(User.created_at.desc())
+                .all())
+
+    def set_login_token(self, user_id, token, expires_at):
+        user = self.get_user(user_id)
+        if not user:
+            return None
+        user.login_token = token
+        user.login_token_expires_at = expires_at
+        db.session.commit()
+        return user
+
+    def consume_login_token(self, token):
+        """Single magic-link use: valid+unexpired row is cleared and returned."""
+        user = User.query.filter_by(login_token=token).one_or_none()
+        if not user:
+            return None
+        valid = user.login_token_expires_at is not None and user.login_token_expires_at >= _utcnow()
+        user.login_token = None
+        user.login_token_expires_at = None
+        db.session.commit()
+        return user if valid else None
 
     def get_confirmed_users(self):
         return User.query.filter_by(is_confirmed=True).all()

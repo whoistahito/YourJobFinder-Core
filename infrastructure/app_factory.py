@@ -6,7 +6,11 @@ autossh sidecar in prod).
 """
 from __future__ import annotations
 
+import re
+import secrets
+import time
 from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
@@ -21,6 +25,9 @@ from domain.job_match_repository import JobMatchRepository
 from infrastructure.job_match_repository import SqlAlchemyJobMatchRepository
 from application.list_user_matches import ListUserMatches
 from notifications import send_welcome_email
+from email_manager import send_email
+from credential import CloudflareCredential
+from html_render import get_login_message, get_signup_nudge_message
 
 
 def create_app(
@@ -40,6 +47,25 @@ def create_app(
 
     _register_routes(app, user_manager, repo)
     return app
+
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_LOGIN_WINDOW_S = 900
+_LOGIN_LIMIT = 3
+
+# in-memory only (resets per worker restart) — enough to stop link spam
+_login_hits: dict[str, list[float]] = {}
+
+
+def _mail_ok(email: str) -> bool:
+    now = time.monotonic()
+    hits = [t for t in _login_hits.get(email, []) if now - t < _LOGIN_WINDOW_S]
+    if len(hits) >= _LOGIN_LIMIT:
+        _login_hits[email] = hits
+        return False
+    hits.append(now)
+    _login_hits[email] = hits
+    return True
 
 
 def _register_routes(app: Flask, user_manager: UserManager, repo: JobMatchRepository) -> None:
@@ -106,6 +132,54 @@ def _register_routes(app: Flask, user_manager: UserManager, repo: JobMatchReposi
     @app.route("/", methods=["GET"])
     def index():
         return redirect("https://yourjobfinder.website")
+
+    @app.route("/login", methods=["POST"])
+    def request_login_link():
+        data = request.json or {}
+        email = str(data.get("email") or "").strip().lower()
+        if not _EMAIL_RE.match(email):
+            return jsonify({"message": "Enter a valid email address."}), 400
+        if not _mail_ok(email):
+            return jsonify({"message": "Too many attempts — try again later."}), 429
+
+        users = user_manager.find_users_by_email(email)
+        sender = CloudflareCredential.get_welcome_from()
+        try:
+            if not users:
+                # Same 200 for known and unknown emails: no enumeration signal.
+                send_email(
+                    get_signup_nudge_message(),
+                    "Start scanning for your job matches",
+                    email,
+                    sender=sender,
+                )
+            elif confirmed := next((u for u in users if u.is_confirmed), None):
+                token = secrets.token_urlsafe(32)
+                expires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=30)
+                user_manager.set_login_token(confirmed.id, token, expires)
+                send_email(
+                    get_login_message(f"https://api.yourjobfinder.website/auth/{token}"),
+                    "Your sign-in link for Your Job Finder",
+                    email,
+                    sender=sender,
+                )
+            else:
+                # Registered but never confirmed: resend the confirmation.
+                send_welcome_email(users[0])
+        except Exception as e:
+            print(e)
+            return jsonify({"message": "Could not send the email. Please try again shortly."}), 500
+
+        return jsonify({
+            "message": "If that email has a subscription, a sign-in link is on its way. Check your inbox."
+        }), 200
+
+    @app.route("/auth/<token>", methods=["GET"])
+    def login_via_token(token):
+        user = user_manager.consume_login_token(token)
+        if user:
+            return redirect(f"https://yourjobfinder.website/dashboard/{user.id}")
+        return redirect("https://yourjobfinder.website/login?state=expired")
 
     @app.route("/users/<user_id>/matches", methods=["GET"])
     def list_user_matches(user_id: str):

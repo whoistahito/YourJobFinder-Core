@@ -1,5 +1,6 @@
 import datetime
 import random
+from typing import Optional
 
 # Design tokens (aligned with app theme)
 BRAND_PRIMARY = "#6366f1"  # brand-500
@@ -303,7 +304,7 @@ def get_html_template(html_content, email, position, location):
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;">
           <tr>
             <td align="center" style="padding:20px 8px 12px 8px;">
-              <p style="margin:0; font-size:11px; line-height:1.5; color:#94a3b8; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© 2025 Your Job Finder. Educational project – do not reply.</p>
+              <p style="margin:0; font-size:11px; line-height:1.5; color:#94a3b8; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© 2025 Your Job Finder. Educational project - do not reply.</p>
             </td>
           </tr>
         </table>
@@ -313,3 +314,91 @@ def get_html_template(html_content, email, position, location):
 </body>
 </html>
     '''
+
+
+def _action_email(pill: str, title: str, body: str, cta_url: Optional[str], cta_label: str) -> str:
+    """Single-panel transactional email in the welcome template's design language."""
+    cta = (f'<a href="{cta_url}" class="btn">{cta_label}</a>' if cta_url else "")
+    return f"""
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>{title} – Your Job Finder</title>
+<style>
+  body {{ margin:0; padding:0; background:{SOFT_BG}; }}
+  .outer {{ background:{SOFT_BG}; }}
+  .shell {{ background:#ffffff; border-radius:28px; box-shadow:0 8px 30px -10px rgba(0,0,0,0.12); }}
+  .hero {{ background:#ffffff; background-image:radial-gradient(circle at 22% 18%, {BRAND_PRIMARY}25, transparent 62%), radial-gradient(circle at 80% 70%, #38bdf81a, transparent 70%); }}
+  .pill {{ display:inline-block; background:#111827; color:#ffffff !important; font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:600; padding:6px 14px; border-radius:999px; text-decoration:none; }}
+  h1 {{ margin:26px 0 12px 0; font-size:28px; line-height:1.08; font-weight:700; letter-spacing:-0.5px; color:#111827; }}
+  p {{ margin:0; font-size:14px; line-height:1.55; color:{SUBTEXT}; }}
+  .small {{ font-size:12px; line-height:1.5; color:#6b7280; }}
+  .btn {{ display:inline-block; background:{BRAND_PRIMARY_DARK}; color:#ffffff !important; font-size:14px; font-weight:600; padding:12px 24px; border-radius:999px; text-decoration:none; margin-top: 20px; }}
+  .accent-line {{ height:3px; background:linear-gradient(90deg, {BRAND_PRIMARY} 0%, {BRAND_PRIMARY_DARK} 55%, transparent 100%); border-radius:2px; line-height:0; font-size:0; margin-top:32px; }}
+  @media (prefers-color-scheme: dark) {{
+    body, .outer {{ background:#0f1115 !important; }}
+    .shell {{ background:#1c1f26 !important; box-shadow:0 0 0 1px #262b33 inset !important; }}
+    .hero {{ background:#1c1f26 !important; background-image:radial-gradient(circle at 22% 18%, {BRAND_PRIMARY_DARK}40, transparent 62%), radial-gradient(circle at 80% 70%, #38bdf845, transparent 70%) !important; }}
+    h1 {{ color:#f1f5f9 !important; }}
+    p, .small {{ color:#cbd5e1 !important; }}
+    .pill {{ background:{BRAND_PRIMARY_DARK} !important; }}
+    .btn {{ background:{BRAND_PRIMARY} !important; }}
+  }}
+</style>
+</head>
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="outer">
+    <tr>
+      <td align="center" style="padding:40px 14px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:660px;" class="shell">
+          <tr>
+            <td class="hero" style="padding:52px 52px 42px 52px; border-radius:28px 28px 0 0;">
+              <span class="pill">{pill}</span>
+              <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">{title}</h1>
+              {body}
+              {cta}
+              <div class="accent-line"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:18px 52px; border-radius:0 0 28px 28px;">
+              <p class="small" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                Didn't request this? You can safely ignore the email.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+
+def get_login_message(login_url):
+    """Magic-link sign-in email: one-time, 30-minute link to the dashboard."""
+    return _action_email(
+        "Sign in",
+        "Your sign-in link",
+        """
+              <p style="max-width:540px; font-size:15px;">Click below to open your matches dashboard —
+              the link works once and expires in 30 minutes.</p>""",
+        login_url,
+        "Open my dashboard",
+    )
+
+
+def get_signup_nudge_message():
+    """Sent to login attempts from unknown emails: no account leak, just a nudge."""
+    return _action_email(
+        "Hello",
+        "We don't have this email yet",
+        """
+              <p style="max-width:540px; font-size:15px;">There is no job-alert subscription for this address.
+              Set one up on the site — tell us your role, job type and location and we scan for matches daily.</p>""",
+        "https://yourjobfinder.website",
+        "Set up job alerts",
+    )
